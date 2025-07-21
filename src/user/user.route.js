@@ -1,13 +1,23 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
 import { User } from "./user.mode.js";
+import { auth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get('/:userId', (req, res, next) => {
-    res.json({});
-})
+router.get("/:userId", auth, async (req, res, next) => {
+  const requestUserId = req.params.userId;
+  const tokenUserId = req.userId;
+  if (requestUserId !== tokenUserId) {
+    const error = new Error("Not allowed!");
+    error.statusCode = 403;
+    next();
+    return;
+  }
+  const user = await User.findOne({_id: requestUserId}, {password: false, __v: false}); 
+  res.json(user);
+});
 //api/users
 router.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
@@ -27,8 +37,10 @@ router.post("/login", async (req, res, next) => {
     next(error);
     return;
   }
-  const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {expiresIn: 60 * 60});
-  res.json({token});
+  const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+    expiresIn: 60 * 60,
+  });
+  res.json({ token });
 });
 
 router.post("/", async (req, res, next) => {
